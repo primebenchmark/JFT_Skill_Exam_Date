@@ -61,7 +61,13 @@ async function sendNotification() {
       title: 'JFT & Skill Form Open Date Reminder',
       body: `${countdownText} until the JFT & Skill exam form opens. Don't miss it!`,
     },
+    data: {
+      title: 'JFT & Skill Form Open Date Reminder',
+      body: `${countdownText} until the JFT & Skill exam form opens. Don't miss it!`,
+      click_action: 'FLUTTER_NOTIFICATION_CLICK',
+    },
     android: {
+      priority: 'high',
       notification: {
         channelId: 'exam_updates',
         sound: 'default',
@@ -69,9 +75,14 @@ async function sendNotification() {
       },
     },
     apns: {
+      headers: {
+        'apns-priority': '10',
+        'apns-push-type': 'alert',
+      },
       payload: {
         aps: {
           sound: 'default',
+          'content-available': 1,
         },
       },
     },

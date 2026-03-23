@@ -40,11 +40,24 @@ Future<void> _setupMessaging() async {
   // Init local notifications
   const initSettings = InitializationSettings(
     android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+    iOS: DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    ),
   );
   await _localNotifications.initialize(initSettings);
 
   final messaging = FirebaseMessaging.instance;
   await messaging.requestPermission(alert: true, badge: true, sound: true);
+
+  // Ensure notifications are visible even when app is in foreground on iOS
+  await messaging.setForegroundNotificationPresentationOptions(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
+
   await messaging.subscribeToTopic('exam_updates');
 
   // Show notification when app is in foreground
