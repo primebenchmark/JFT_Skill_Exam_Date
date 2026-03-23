@@ -1,7 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'firebase_options.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const MyApp());
 }
 
@@ -40,10 +45,12 @@ class _CountdownPageState extends State<CountdownPage>
   Duration _remaining = Duration.zero;
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
+  StreamSubscription<DocumentSnapshot>? _firestoreSub;
 
   @override
   void initState() {
     super.initState();
+    _listenToExamDate();
     _updateRemaining();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       _updateRemaining();
@@ -57,6 +64,25 @@ class _CountdownPageState extends State<CountdownPage>
     _pulseAnimation = Tween<double>(begin: 0.6, end: 1.0).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
+  }
+
+  void _listenToExamDate() {
+    _firestoreSub = FirebaseFirestore.instance
+        .collection('config')
+        .doc('examDate')
+        .snapshots()
+        .listen((snapshot) {
+      if (snapshot.exists) {
+        final data = snapshot.data()!;
+        final ts = data['date'] as Timestamp?;
+        if (ts != null) {
+          setState(() {
+            _targetDate = ts.toDate();
+          });
+          _updateRemaining();
+        }
+      }
+    });
   }
 
   void _updateRemaining() {
@@ -96,10 +122,34 @@ class _CountdownPageState extends State<CountdownPage>
       },
     );
     if (picked != null) {
-      setState(() {
-        _targetDate = picked;
-      });
-      _updateRemaining();
+      if (!mounted) return;
+      final pickedTime = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.fromDateTime(_targetDate),
+        helpText: 'Set Exam Time',
+        builder: (context, child) {
+          return Theme(
+            data: Theme.of(context).copyWith(
+              colorScheme: const ColorScheme.dark(
+                primary: Color(0xFFB71C1C),
+                onPrimary: Colors.white,
+                surface: Color(0xFF2E2E2E),
+                onSurface: Colors.white,
+              ),
+            ),
+            child: child!,
+          );
+        },
+      );
+      if (pickedTime == null) return;
+      final dateTime = DateTime(
+        picked.year, picked.month, picked.day,
+        pickedTime.hour, pickedTime.minute,
+      );
+      await FirebaseFirestore.instance
+          .collection('config')
+          .doc('examDate')
+          .set({'date': Timestamp.fromDate(dateTime)});
     }
   }
 
@@ -135,6 +185,7 @@ class _CountdownPageState extends State<CountdownPage>
 
   @override
   void dispose() {
+    _firestoreSub?.cancel();
     _timer.cancel();
     _pulseController.dispose();
     super.dispose();
