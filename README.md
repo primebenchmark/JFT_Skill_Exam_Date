@@ -65,7 +65,30 @@ lib/
 | `cupertino_icons` | iOS-style icons |
 | `firebase_core` | Firebase initialization |
 | `cloud_firestore` | Real-time Firestore sync |
+| `google_fonts` | Custom font rendering |
 | `flutter_launcher_icons` | Generate app icons from `logo.png` |
+
+## Push Notifications
+
+`send_notification.js` is a Node.js script that sends an FCM push notification to all subscribed users via the `exam_updates` topic.
+
+### Setup
+
+```bash
+npm install firebase-admin
+```
+
+Download your Firebase service account key from **Firebase Console → Project Settings → Service accounts** and save it as `serviceAccountKey.json` in the project root (this file is gitignored).
+
+### Usage
+
+```bash
+node send_notification.js
+```
+
+The script calculates the days remaining to the exam date and sends a reminder notification to all devices subscribed to the `exam_updates` topic.
+
+> **Note:** `serviceAccountKey.json` is gitignored — never commit it. Each environment needs its own key.
 
 ## License
 

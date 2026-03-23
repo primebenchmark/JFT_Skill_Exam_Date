@@ -59,3 +59,10 @@ firebase.json
 # Generated files
 *.g.dart
 *.freezed.dart
+
+# Node.js (send_notification.js tooling)
+node_modules/
+package-lock.json
+
+# Firebase service account key (contains sensitive credentials)
+serviceAccountKey.json
