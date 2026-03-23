@@ -279,26 +279,28 @@ class _CountdownPageState extends State<CountdownPage>
                     fontWeight: FontWeight.w400,
                   ),
                 ),
-                const SizedBox(height: 48),
-                // Countdown boxes
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Expanded(child: _CountdownUnit(value: days, label: 'DAYS')),
-                      _buildSeparator(),
-                      Expanded(child: _CountdownUnit(value: hours, label: 'HOURS')),
-                      _buildSeparator(),
-                      Expanded(child: _CountdownUnit(value: minutes, label: 'MINS')),
-                      _buildSeparator(),
-                      Expanded(child: _CountdownUnit(value: seconds, label: 'SECS')),
-                    ],
+                if (!_isExpired) ...[
+                  const SizedBox(height: 48),
+                  // Countdown boxes
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Expanded(child: _CountdownUnit(value: days, label: 'DAYS')),
+                        _buildSeparator(),
+                        Expanded(child: _CountdownUnit(value: hours, label: 'HOURS')),
+                        _buildSeparator(),
+                        Expanded(child: _CountdownUnit(value: minutes, label: 'MINS')),
+                        _buildSeparator(),
+                        Expanded(child: _CountdownUnit(value: seconds, label: 'SECS')),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 48),
-                // Progress indicator (2-month window)
-                _buildProgressBar(),
+                  const SizedBox(height: 48),
+                  // Progress indicator (2-month window)
+                  _buildProgressBar(),
+                ],
               ],
             ),
           ),
