@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -16,7 +17,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'JFT & Skill Exam Date',
+      title: 'JFT & Skill Form Date',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
@@ -175,12 +176,120 @@ class _CountdownPageState extends State<CountdownPage>
     return (elapsed / total).clamp(0.0, 1.0);
   }
 
-  String _formatTargetDate() {
+  String _formatGregorianDate() {
     const months = [
       '', 'January', 'February', 'March', 'April', 'May', 'June',
       'July', 'August', 'September', 'October', 'November', 'December'
     ];
     return '(${months[_targetDate.month]} ${_targetDate.day}, ${_targetDate.year})';
+  }
+
+  String _formatBsDate() {
+    final bs = _toBikramSambat(_targetDate);
+    final nepaliDay = _toNepaliDigits(bs.$2);
+    final nepaliYear = _toNepaliDigits(bs.$1);
+    final nepaliMonth = _bsMonthNepali(bs.$3);
+    return '($nepaliMonth $nepaliDay, $nepaliYear)';
+  }
+
+  String _toNepaliDigits(int number) {
+    const nepaliDigits = ['०', '१', '२', '३', '४', '५', '६', '७', '८', '९'];
+    return number.toString().split('').map((d) => nepaliDigits[int.parse(d)]).join();
+  }
+
+  String _bsMonthNepali(String englishName) {
+    const map = {
+      'Baishakh': 'बैशाख', 'Jestha': 'जेठ', 'Ashadh': 'असार',
+      'Shrawan': 'साउन', 'Bhadra': 'भदौ', 'Ashwin': 'असोज',
+      'Kartik': 'कार्तिक', 'Mangsir': 'मंसिर', 'Poush': 'पुष',
+      'Magh': 'माघ', 'Falgun': 'फाल्गुन', 'Chaitra': 'चैत्र',
+    };
+    return map[englishName] ?? englishName;
+  }
+
+  /// Converts a Gregorian [DateTime] to Bikram Sambat (year, day, monthName).
+  (int, int, String) _toBikramSambat(DateTime date) {
+    const bsMonthNames = [
+      '', 'Baishakh', 'Jestha', 'Ashadh', 'Shrawan', 'Bhadra', 'Ashwin',
+      'Kartik', 'Mangsir', 'Poush', 'Magh', 'Falgun', 'Chaitra'
+    ];
+
+    // BS year -> days in each of the 12 months
+    const bsData = <int, List<int>>{
+      2070: [31,31,32,31,31,31,30,29,30,29,30,30],
+      2071: [31,31,32,31,32,30,30,29,30,29,30,30],
+      2072: [31,32,31,32,31,30,30,30,29,29,30,31],
+      2073: [31,31,32,31,31,31,30,29,30,29,30,30],
+      2074: [31,31,32,32,31,30,30,29,30,29,30,30],
+      2075: [31,32,31,32,31,30,30,30,29,29,30,31],
+      2076: [31,32,31,32,31,30,30,30,29,30,29,31],
+      2077: [31,31,32,31,31,31,30,29,30,29,30,30],
+      2078: [31,31,32,32,31,30,30,29,30,29,30,30],
+      2079: [31,32,31,32,31,30,30,30,29,29,30,31],
+      2080: [31,31,32,31,31,31,30,29,30,29,30,30],
+      2081: [31,31,32,32,31,30,30,29,30,29,30,30],
+      2082: [31,32,31,32,31,30,30,30,29,29,30,31],
+      2083: [31,31,32,31,31,31,30,29,30,29,30,30],
+      2084: [31,31,32,32,31,30,30,29,30,29,30,30],
+      2085: [31,32,31,32,31,30,30,30,29,29,30,31],
+      2086: [31,32,31,32,31,30,30,30,29,30,29,31],
+      2087: [31,31,32,31,31,31,30,29,30,29,30,30],
+      2088: [31,31,32,32,31,30,30,29,30,29,30,30],
+      2089: [31,32,31,32,31,30,30,30,29,29,30,31],
+      2090: [31,31,32,31,31,31,30,29,30,29,30,30],
+    };
+
+    // Reference: BS 2070/1/1 = AD 2013/4/14
+    final refAd = DateTime(2013, 4, 14);
+    int diffDays = date.difference(refAd).inDays;
+
+    int bsYear = 2070;
+    int bsMonth = 1;
+    int bsDay = 1;
+
+    if (diffDays >= 0) {
+      while (bsData.containsKey(bsYear)) {
+        final months = bsData[bsYear]!;
+        int yearDays = months.reduce((a, b) => a + b);
+        if (diffDays < yearDays) {
+          for (int m = 0; m < 12; m++) {
+            if (diffDays < months[m]) {
+              bsMonth = m + 1;
+              bsDay = diffDays + 1;
+              return (bsYear, bsDay, bsMonthNames[bsMonth]);
+            }
+            diffDays -= months[m];
+          }
+        }
+        diffDays -= yearDays;
+        bsYear++;
+      }
+    } else {
+      // Before reference date — fallback
+      diffDays = diffDays.abs();
+      bsYear = 2069;
+      while (diffDays > 0 && bsData.containsKey(bsYear)) {
+        final months = bsData[bsYear]!;
+        int yearDays = months.reduce((a, b) => a + b);
+        if (diffDays <= yearDays) {
+          int rem = yearDays - diffDays;
+          for (int m = 0; m < 12; m++) {
+            if (rem < months[m]) {
+              bsMonth = m + 1;
+              bsDay = rem + 1;
+              return (bsYear, bsDay, bsMonthNames[bsMonth]);
+            }
+            rem -= months[m];
+          }
+        }
+        diffDays -= yearDays;
+        bsYear--;
+      }
+    }
+
+    // Fallback: approximate
+    final approxYear = date.year + 57;
+    return (approxYear, date.day, bsMonthNames[date.month <= 12 ? date.month : 1]);
   }
 
   @override
@@ -261,7 +370,7 @@ class _CountdownPageState extends State<CountdownPage>
                 const SizedBox(height: 16),
                 // Title
                 const Text(
-                  'Next JFT & Skill Exam Date',
+                  'Next JFT & Skill Form Date',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Colors.white,
@@ -272,10 +381,19 @@ class _CountdownPageState extends State<CountdownPage>
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  _formatTargetDate(),
+                  _formatBsDate(),
+                  style: GoogleFonts.notoSansDevanagari(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _formatGregorianDate(),
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.85),
-                    fontSize: 17,
+                    color: Colors.white.withValues(alpha: 0.65),
+                    fontSize: 15,
                     fontWeight: FontWeight.w400,
                   ),
                 ),
@@ -305,13 +423,6 @@ class _CountdownPageState extends State<CountdownPage>
             ),
           ),
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _pickNewDate,
-        backgroundColor: const Color(0xFF8B1A1A),
-        foregroundColor: Colors.white,
-        tooltip: 'Change exam date',
-        child: const Icon(Icons.edit_calendar_rounded),
       ),
     );
   }

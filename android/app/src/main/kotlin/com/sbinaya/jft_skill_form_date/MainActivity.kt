@@ -1,4 +1,4 @@
-package com.sbinaya.jft_skill_exam_date
+package com.sbinaya.jft_skill_form_date
 
 import io.flutter.embedding.android.FlutterActivity
 
