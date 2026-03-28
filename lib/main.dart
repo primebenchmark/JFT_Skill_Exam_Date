@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -143,18 +145,23 @@ class _CountdownPageState extends State<CountdownPage>
         .collection('config')
         .doc('examDate')
         .snapshots()
-        .listen((snapshot) {
-      if (snapshot.exists) {
-        final data = snapshot.data()!;
-        final ts = data['date'] as Timestamp?;
-        if (ts != null) {
-          setState(() {
-            _targetDate = ts.toDate();
-          });
-          _updateRemaining();
+        .listen(
+      (snapshot) {
+        if (snapshot.exists) {
+          final data = snapshot.data()!;
+          final ts = data['date'] as Timestamp?;
+          if (ts != null) {
+            setState(() {
+              _targetDate = ts.toDate();
+            });
+            _updateRemaining();
+          }
         }
-      }
-    });
+      },
+      onError: (Object error) {
+        debugPrint('Firestore listen error: $error');
+      },
+    );
   }
 
   void _updateRemaining() {
@@ -655,18 +662,57 @@ class _PinDialogState extends State<_PinDialog> {
   final _controller = TextEditingController();
   String _error = '';
 
+  // SHA-256 hash of the admin PIN. Never store the raw PIN in source code.
+  // To change the PIN: compute sha256('<new-pin>') and update this constant.
+  // Architectural note: for production, validate the PIN server-side via a
+  // Firebase Cloud Function and rely on Firebase Security Rules to restrict
+  // direct Firestore writes from clients.
+  static const String _pinHash =
+      'e7bb14f4c55efcc91e049546838499c176b2f0e01c2161bd9517c32cd1f3a37b';
+
+  // Brute-force protection — shared across dialog instances within a session.
+  static int _failedAttempts = 0;
+  static DateTime? _lockedUntil;
+  static const int _maxAttempts = 5;
+  static const Duration _lockoutDuration = Duration(seconds: 30);
+
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
 
+  bool get _isLocked {
+    if (_lockedUntil == null) return false;
+    if (DateTime.now().isBefore(_lockedUntil!)) return true;
+    // Lockout expired — reset.
+    _lockedUntil = null;
+    _failedAttempts = 0;
+    return false;
+  }
+
   void _submit() {
-    if (_controller.text == '9963') {
+    if (_isLocked) {
+      final remaining = _lockedUntil!.difference(DateTime.now()).inSeconds;
+      setState(() => _error = 'Too many attempts. Try again in ${remaining}s.');
+      _controller.clear();
+      return;
+    }
+
+    final inputHash = sha256.convert(utf8.encode(_controller.text)).toString();
+    if (inputHash == _pinHash) {
+      _failedAttempts = 0;
+      _lockedUntil = null;
       FocusScope.of(context).unfocus();
       Navigator.of(context).pop(true);
     } else {
-      setState(() => _error = 'Incorrect PIN');
+      _failedAttempts++;
+      if (_failedAttempts >= _maxAttempts) {
+        _lockedUntil = DateTime.now().add(_lockoutDuration);
+        setState(() => _error = 'Too many attempts. Locked for ${_lockoutDuration.inSeconds}s.');
+      } else {
+        setState(() => _error = 'Incorrect PIN (${_maxAttempts - _failedAttempts} attempts left)');
+      }
       _controller.clear();
     }
   }
