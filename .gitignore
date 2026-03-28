@@ -38,6 +38,9 @@ app.*.symbols
 # Obfuscation related
 app.*.map.json
 
+# Dart obfuscation split-debug-info output (keep symbols out of repo)
+build/debug-info/
+
 # Android Studio build artifacts
 /android/app/debug
 /android/app/profile
@@ -62,7 +65,7 @@ firebase.json
 
 # Node.js (send_notification.js tooling)
 node_modules/
-package-lock.json
+# package-lock.json is intentionally tracked for reproducible installs
 
 # Firebase service account key (contains sensitive credentials)
 serviceAccountKey.json

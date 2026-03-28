@@ -43,8 +43,10 @@ flutter run
 ### Build (Android)
 
 ```bash
-flutter build apk --release
+flutter build apk --release --obfuscate --split-debug-info=build/debug-info/
 ```
+
+> **Note:** `--obfuscate` strips Dart symbol names from the release binary. The `build/debug-info/` folder (gitignored) contains the symbol map needed to de-symbolicate crash reports — store it somewhere safe (e.g. a private CI artifact or secure storage).
 
 ## Changing the Exam Date
 
@@ -65,7 +67,10 @@ lib/
 | `cupertino_icons` | iOS-style icons |
 | `firebase_core` | Firebase initialization |
 | `cloud_firestore` | Real-time Firestore sync |
+| `firebase_messaging` | FCM push notification reception |
+| `flutter_local_notifications` | In-app notification display |
 | `google_fonts` | Custom font rendering |
+| `crypto` | SHA-256 PIN hashing |
 | `flutter_launcher_icons` | Generate app icons from `logo.png` |
 
 ## Push Notifications
@@ -78,7 +83,25 @@ lib/
 npm install firebase-admin
 ```
 
-Download your Firebase service account key from **Firebase Console → Project Settings → Service accounts** and save it as `serviceAccountKey.json` in the project root (this file is gitignored).
+### Credentials
+
+The script requires Firebase service account credentials supplied via environment variable — **never place the key file on disk or commit it**.
+
+**Option A (recommended):** Export the raw JSON content of your service account key:
+
+```bash
+export SERVICE_ACCOUNT_JSON='{ "type": "service_account", ... }'
+node send_notification.js
+```
+
+**Option B:** Point to the key file path:
+
+```bash
+export GOOGLE_APPLICATION_CREDENTIALS=/path/to/serviceAccountKey.json
+node send_notification.js
+```
+
+Download the service account key from **Firebase Console → Project Settings → Service accounts**. If neither variable is set, the script exits with an error.
 
 ### Usage
 
@@ -88,7 +111,43 @@ node send_notification.js
 
 The script calculates the days remaining to the exam date and sends a reminder notification to all devices subscribed to the `exam_updates` topic.
 
-> **Note:** `serviceAccountKey.json` is gitignored — never commit it. Each environment needs its own key.
+> **Security:** `serviceAccountKey.json` is gitignored. Supply credentials only via the environment variables above — never via a local file checked into source control.
+
+## Security
+
+### Admin PIN
+
+The admin PIN is stored as a SHA-256 hash in `lib/main.dart`. To change it:
+
+1. Compute the hash of your new PIN:
+   ```bash
+   echo -n '<your-new-pin>' | sha256sum
+   ```
+2. Update the `_pinHash` constant in `_PinDialogState`.
+
+> **Important:** Client-side PIN validation is a convenience guard only. For production, validate the PIN server-side via a Firebase Cloud Function and use Firebase Security Rules to block direct client writes to `config/examDate`.
+
+### Firebase Security Rules
+
+Ensure your Firestore rules restrict writes to `config/examDate` to authorised server-side operations only:
+
+```js
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /config/examDate {
+      allow read: if true;
+      allow write: if false; // writes only via Cloud Function
+    }
+  }
+}
+```
+
+### Release Build
+
+- Enable Dart obfuscation with `--obfuscate --split-debug-info=build/debug-info/` (see Build section above).
+- Configure a release signing keystore before publishing to Google Play — the current build uses debug keys as a placeholder.
+- Enable [Firebase App Check](https://firebase.google.com/docs/app-check) to prevent unauthorised API access from modified clients.
 
 ## License
 
